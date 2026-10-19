@@ -1,0 +1,14 @@
+node_modules/
+.clasp.json
+.clasprc.json
+*帳號密碼*.json
+client_secret.json
+.DS_Store
+dist/
+*.zip
+*.png
+*.mp4
+*.m4a
+*_需求規格書.md
+影片素材_功能測試/
+影片_系統操作教學/
