@@ -128,3 +128,36 @@ test('account transfers preserve total, reconciliation and close lock the period
   context.closePeriod(owner, '2026-01-31');
   assert.throws(() => context.saveTransaction(owner, { type: 'INCOME', gregorianDate: '2026-01-15', amount: '1', category: 'DONATION' }), /已結帳/);
 });
+
+test('fresh public install hashes bootstrap passwords and removes plaintext properties', () => {
+  const ownerPassword = 'sample-owner-password-123456789';
+  const managerPassword = 'sample-manager-password-987654321';
+  const props = new Map([
+    ['BOOTSTRAP_OWNER_PASSWORD', ownerPassword],
+    ['BOOTSTRAP_MANAGER_PASSWORD', managerPassword]
+  ]);
+  const cache = new Map();
+  const context = vm.createContext({
+    AUTH_SEED_USERS: [],
+    PropertiesService: { getScriptProperties: () => ({
+      getProperty: key => props.get(key),
+      setProperty: (key, value) => props.set(key, value),
+      deleteProperty: key => props.delete(key)
+    }) },
+    CacheService: { getScriptCache: () => ({
+      get: key => cache.get(key), put: (key, value) => cache.set(key, value), remove: key => cache.delete(key)
+    }) },
+    Utilities: {
+      getUuid: () => crypto.randomUUID(),
+      Charset: { UTF_8: 'utf8' }, DigestAlgorithm: { SHA_256: 'sha256' },
+      computeDigest: (_, value) => [...crypto.createHash('sha256').update(value).digest()]
+    }
+  });
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/Auth.js'), 'utf8'), context);
+  assert.equal(context.login('owner', ownerPassword).user.role, 'OWNER');
+  assert.equal(context.login('coadmin', managerPassword).user.role, 'MANAGER');
+  assert.equal(props.has('BOOTSTRAP_OWNER_PASSWORD'), false);
+  assert.equal(props.has('BOOTSTRAP_MANAGER_PASSWORD'), false);
+  assert.equal(JSON.stringify(props.get('LEDGER_USERS_V1')).includes(ownerPassword), false);
+  assert.equal(JSON.stringify(props.get('LEDGER_USERS_V1')).includes(managerPassword), false);
+});
